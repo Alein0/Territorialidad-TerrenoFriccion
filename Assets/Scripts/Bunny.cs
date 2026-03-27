@@ -370,8 +370,12 @@ public class Bunny : MonoBehaviour
         return pos;
     }
 
-    Food FindNearestFood()
+    Food FindNearestFood() // Busca la comida m�s cercana dentro del rango de visi�n, considerando obst�culos
     {
+        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, visionRange, LayerMask.GetMask("Food"));  // Busca todos los collider dentro del rango de visi�n
+        Debug.Log($"Bunny {name} encontr� {hits.Length} colliders en su rango");
+        Food nearest = null; // Inicializa la variable
+        float minDist = Mathf.Infinity; // Inicializa la distancia m�nima a infinito
         Collider2D[] hits = Physics2D.OverlapCircleAll(
             transform.position,
             visionRange,
@@ -381,7 +385,7 @@ public class Bunny : MonoBehaviour
         Food nearest = null;
         float minDist = Mathf.Infinity;
 
-        foreach (Collider2D hit in hits)
+        foreach (Collider2D hit in hits) // Se ejecuta para cada collider encontrado
         {
             Food food = hit.GetComponent<Food>();
             if (food == null) continue;
@@ -402,11 +406,22 @@ public class Bunny : MonoBehaviour
 
             if (dist < minDist)
             {
+                Vector2 direction = food.transform.position - transform.position; //Ac� se calcula la direcci�n hacia la comida que va a comer
+                float dist = direction.magnitude; //Ac� se calcula la direcci�n hacia esa misma comida
+                RaycastHit2D rayHit = Physics2D.Raycast(transform.position, direction.normalized, dist, LayerMask.GetMask("Obstacles")); //Ac� se lanza un rayo desde el conejo hacia la comida a la que quiere ir
+                if (rayHit.collider == null) //Si el rayo no choca con ning�n obst�culo, entonces el conejo tiene un camino directo hacia la comida. Si el rayo choca con un obst�culo, entonces el conejo no puede ver la comida por el obst�culo que hay en medio
+                {
+                    if (dist < minDist) //Si la distancia hacia la comida es menor que la distancia m�nima
+                    {
+                        minDist = dist;//Entonces se actualiza la distancia m�nima
+                        nearest = food;//Y se actualiza la comida m�s cercana
+                    }
+                }
                 minDist = dist;
                 nearest = food;
             }
         }
+        return nearest; //Retornando la comida m�s cercana que el conejo puede ver, si no hay niguno entonces manda un null
 
-        return nearest;
     }
 }
