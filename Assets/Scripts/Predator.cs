@@ -123,7 +123,9 @@ public class Predator : MonoBehaviour
 
     void Rest()
     {
-        restTimer += h; 
+        restTimer += h;
+
+        destination = transform.position;
 
         if (restTimer >= restTime)//Para que no se mueva
         {
@@ -163,6 +165,8 @@ public class Predator : MonoBehaviour
 
     void Move()
     {
+        if (currentState == PredatorState.Resting) return;
+
         transform.position = Vector3.MoveTowards(
             transform.position,
             destination,
