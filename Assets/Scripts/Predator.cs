@@ -25,6 +25,14 @@ public class Predator : MonoBehaviour
     public bool isAlive = true;
     public PredatorState currentState = PredatorState.Exploring;
 
+    [Header("Hunger (Progressive increase)")]
+    public float timeWithoutFood = 0f;
+    public float timeToIncrease = 5f; // Cantidad de segundos para que ocurra un aumento de velocidad
+
+    public float speedBonus = 0.5f; // Cantidad que se le agregar a public float speed
+    private float currentSpeedBonus = 0f; // Bonus defecto al comenzar la simulacion
+    private float baseSpeed;
+
     private Vector3 destination;
     private float h; 
     // h es el tiempo que dura cada paso de la simulación, esto viene de SimulationManager.secondsPerIteration =1f;
@@ -54,6 +62,15 @@ public class Predator : MonoBehaviour
 
     public void Simulate(float h) // h es el tiempo de cada paso (1 segundo)
     {
+        timeWithoutFood += h;
+
+        // Aumento de velocidad cada cierto tiempo
+        if (timeWithoutFood >= timeToIncrease)
+        {
+            speed += speedBonus;
+            timeWithoutFood -= timeToIncrease; // Si es mayor que 0
+        }
+
         if (!isAlive) return;
 
         this.h = h;
@@ -77,6 +94,7 @@ public class Predator : MonoBehaviour
             case PredatorState.Eating:
                 Eat();
                 break;
+
         }
 
         Move();
@@ -130,6 +148,9 @@ public class Predator : MonoBehaviour
 
     void SearchFood()
     {
+
+        Bunny nearestBunny = FindNearestBunny();
+        if (nearestBunny == null)
         if (targetBunny == null)
         {
             AbortHuntAndExplore();
@@ -142,6 +163,7 @@ public class Predator : MonoBehaviour
         if (dist > visionRange)
         {
             currentState = PredatorState.Exploring;
+
             SelectNewDestination(); 
             return;
         }
@@ -264,6 +286,11 @@ public class Predator : MonoBehaviour
             if (food != null)
             {
                 energy += food.age;
+
+                // Reseteo del las variables de hambre progresiva
+                speed = baseSpeed;
+                timeWithoutFood = 0f;
+
                 Destroy(food.gameObject);
             }
         }
