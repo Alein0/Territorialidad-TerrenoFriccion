@@ -13,16 +13,34 @@ public class Predator : MonoBehaviour
     public bool isAlive = true;
     public PredatorState currentState = PredatorState.Exploring;
 
+    [Header("Hunger (Progressive increase)")]
+    public float timeWithoutFood = 0f;
+    public float timeToIncrease = 5f; // Cantidad de segundos para que ocurra un aumento de velocidad
+
+    public float speedBonus = 0.5f; // Cantidad que se le agregar a public float speed
+    private float currentSpeedBonus = 0f; // Bonus defecto al comenzar la simulacion
+    private float baseSpeed;
+
     private Vector3 destination;
     private float h;
 
     private void Start()
     {
         destination = transform.position;
+        baseSpeed = speed;
     }
 
     public void Simulate(float h)
     {
+        timeWithoutFood += h;
+
+        // Aumento de velocidad cada cierto tiempo
+        if (timeWithoutFood >= timeToIncrease)
+        {
+            speed += speedBonus;
+            timeWithoutFood -= timeToIncrease; // Si es mayor que 0
+        }
+
         if (!isAlive) return;
 
         this.h = h;
@@ -94,6 +112,11 @@ public class Predator : MonoBehaviour
             if (food != null)
             {
                 energy += food.age;
+
+                // Reseteo del las variables de hambre progresiva
+                speed = baseSpeed;
+                timeWithoutFood = 0f;
+
                 Destroy(food.gameObject);
             }
         }
