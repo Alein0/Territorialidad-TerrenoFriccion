@@ -177,15 +177,19 @@ public class Predator : MonoBehaviour
             Bunny food = hit.GetComponent<Bunny>();
             if (food != null)
             {
-                float dist = Vector2.Distance(transform.position, food.transform.position);
-                if (dist < minDist)
+                Vector2 direction = food.transform.position - transform.position;
+                float dist = direction.magnitude;
+                RaycastHit2D rayHit = Physics2D.Raycast(transform.position, direction.normalized, dist, LayerMask.GetMask("Obstacles"));
+                if (rayHit.collider == null)
                 {
-                    minDist = dist;
-                    nearest = food;
+                    if (dist < minDist)
+                    {
+                        minDist = dist;
+                        nearest = food;
+                    }
                 }
             }
         }
-
         return nearest;
     }
 }
