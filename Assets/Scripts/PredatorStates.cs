@@ -2,5 +2,6 @@ public enum PredatorState
 {
     Exploring,
     SearchingFood,
-    Eating
+    Eating,
+    Resting //Estado de descanso nuevo
 }

@@ -13,6 +13,13 @@ public class Predator : MonoBehaviour
     public bool isAlive = true;
     public PredatorState currentState = PredatorState.Exploring;
 
+    [Header("Fatigue Settings")]
+    public float maxChaseTime = 5f;
+    public float restTime = 3f;
+
+    private float chaseTimer = 0f;
+    private float restTimer = 0f;
+
     private Vector3 destination;
     private float h;
 
@@ -37,6 +44,9 @@ public class Predator : MonoBehaviour
                 break;
             case PredatorState.Eating:
                 Eat();
+                break;
+            case PredatorState.Resting:
+                Rest();
                 break;
         }
 
@@ -65,11 +75,22 @@ public class Predator : MonoBehaviour
 
     void SearchFood()
     {
+        chaseTimer += h;
+
+        // Formula de cansancio
+        if (chaseTimer >= maxChaseTime)
+        {
+            currentState = PredatorState.Resting;
+            restTimer = 0f;
+            return;
+        }
+
         Bunny nearestBunny = FindNearestBunny();
         if (nearestBunny == null)
         {
             // Si no hay comida, volver a explorar
             currentState = PredatorState.Exploring;
+            chaseTimer = 0f;
             return;
         }
 
@@ -79,6 +100,7 @@ public class Predator : MonoBehaviour
         if (Vector3.Distance(transform.position, nearestBunny.transform.position) < 0.2f)
         {
             currentState = PredatorState.Eating;
+            chaseTimer = 0f;
         }
     }
 
@@ -97,6 +119,17 @@ public class Predator : MonoBehaviour
 
         // Después de comer vuelve a explorar
         currentState = PredatorState.Exploring;
+    }
+
+    void Rest()
+    {
+        restTimer += h; 
+
+        if (restTimer >= restTime)//Para que no se mueva
+        {
+            currentState = PredatorState.Exploring;
+            chaseTimer = 0f;
+        }
     }
 
     void Flee()
