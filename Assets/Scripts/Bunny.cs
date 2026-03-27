@@ -8,6 +8,7 @@ public class Bunny : MonoBehaviour
     public float maxAge = 20f;
     public float speed = 1f;
     public float visionRange = 5f;
+    public float baseSpeed;
 
 
     [Header("Sleeping Settings")]
