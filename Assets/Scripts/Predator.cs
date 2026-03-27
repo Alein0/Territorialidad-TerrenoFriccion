@@ -28,10 +28,7 @@ public class Predator : MonoBehaviour
     [Header("Hunger (Progressive increase)")]
     public float timeWithoutFood = 0f;
     public float timeToIncrease = 5f; // Cantidad de segundos para que ocurra un aumento de velocidad
-
     public float speedBonus = 0.5f; // Cantidad que se le agregar a public float speed
-    private float currentSpeedBonus = 0f; // Bonus defecto al comenzar la simulacion
-    private float baseSpeed;
 
     private Vector3 destination;
     private float h; 
@@ -177,10 +174,10 @@ public class Predator : MonoBehaviour
             return;
         }
 
-        Vector2 dirNorm = dir / dist;
+        Vector2 dirNorm = destination / dist;
 
         RaycastHit2D obstacleHit = Physics2D.Raycast(
-            origin,
+            transform.position,
             dirNorm,
             dist,
             LayerMask.GetMask("Obstacles")
@@ -193,7 +190,7 @@ public class Predator : MonoBehaviour
         }
 
         RaycastHit2D waterHit = Physics2D.Raycast(
-            origin,
+            transform.position,
             dirNorm,
             dist,
             LayerMask.GetMask("Water")
