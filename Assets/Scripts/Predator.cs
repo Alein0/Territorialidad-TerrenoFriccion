@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class Predator : MonoBehaviour
 {
@@ -56,7 +56,7 @@ public class Predator : MonoBehaviour
             return;
         }
 
-        // Si ya llegó al destino, elegir uno nuevo
+        // Si ya llegÃ³ al destino, elegir uno nuevo
         if (Vector3.Distance(transform.position, destination) < 0.1f)
         {
             SelectNewDestination();
@@ -73,10 +73,20 @@ public class Predator : MonoBehaviour
             return;
         }
 
+        // verificar que siga dentro del rango de visiÃ³n
+        float dist = Vector3.Distance(transform.position, nearestBunny.transform.position);
+
+        if (dist > visionRange)
+        {
+            currentState = PredatorState.Exploring;
+            SelectNewDestination(); 
+            return;
+        }
+
         destination = nearestBunny.transform.position;
 
-        // Si está suficientemente cerca, pasar a comer
-        if (Vector3.Distance(transform.position, nearestBunny.transform.position) < 0.2f)
+        // Si estÃ¡ suficientemente cerca, pasar a comer
+        if (dist < 0.2f)
         {
             currentState = PredatorState.Eating;
         }
@@ -95,7 +105,7 @@ public class Predator : MonoBehaviour
             }
         }
 
-        // Después de comer vuelve a explorar
+        // DespuÃ©s de comer vuelve a explorar
         currentState = PredatorState.Exploring;
     }
 
@@ -168,7 +178,7 @@ public class Predator : MonoBehaviour
     Bunny FindNearestBunny()
     {
         Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, visionRange, LayerMask.GetMask("Bunnies"));
-        Debug.Log($"Predator {name} encontró {hits.Length} colliders en su rango");
+        Debug.Log($"Predator {name} encontrÃ³ {hits.Length} colliders en su rango");
         Bunny nearest = null;
         float minDist = Mathf.Infinity;
 
