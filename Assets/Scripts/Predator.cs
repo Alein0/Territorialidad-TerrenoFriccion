@@ -9,32 +9,69 @@ public class Predator : MonoBehaviour
     public float speed = 1f;
     public float visionRange = 5f;
 
+    [Header("Water Settings")]
+    [Range(0f, 100f)]
+    public float waterCrossChance = 50f;
+    //CONDICI√ìN F√çSICA DEL DEPREDADOR EN CASO DE CANSANCIO
+    [Header("Physical condition settings")]
+    public float maxResistancePursue = 10f; // Resistencia m√°xima para perseguir a su presa
+    public float resistanceLostSecondPursue = 2f; // Resistencia perdida por segundo de persecuci√≥n
+    public float resistanceRecoveredWithResting = 2f; // Resistencia recuperada por descansar
+    public float PursueDuration = 3f; //Tiempo m√°ximo de persecuci√≥n
+    public float restingDuration = 3f; //Tiempo de descanso despu√©s de abandonar
+
     [Header("Predator States")]
     public bool isAlive = true;
     public PredatorState currentState = PredatorState.Exploring;
 
     private Vector3 destination;
-    private float h;
+    private float h; 
+    // h es el tiempo que dura cada paso de la simulaci√≥n, esto viene de SimulationManager.secondsPerIteration =1f;
+
+    // VARIABLES PARA EL CANSANCIO DEL DEPREDADOR
+    private float currentResistance; // Resistencia actual del depredador
+    private float pursueTimer = 0f; // Tiempo que lleva la persecuci√≥n (valor inicial)
+    private float restingTimer = 0f; // Tiempo que lleva descansando el depredador (valor inicial)
+    private bool isResting = false;
+    private Bunny currentPrey; // Conejo que esgt√° persiguiendo
+
+    private Bunny targetBunny;
+    private bool waterDecisionMade = false;
+    private bool canCrossWaterThisSearch = false;
+
+    // Mientras este valor sea true, el zorro explora sin volver a detectar comida.
+    private bool ignoreFoodUntilExplorePoint = false;
 
     private void Start()
     {
         destination = transform.position;
+
+        //Al iniciar la simuaci√≥n, el depredador estar√° con la resistencia al m√°ximo
+        currentResistance = maxResistancePursue;
     }
 
-    public void Simulate(float h)
+    public void Simulate(float h) // h es el tiempo de cada paso (1 segundo)
     {
         if (!isAlive) return;
 
         this.h = h;
+
+        if (isResting) // Si el depredador est√° descansando,...
+        {
+            Rest();
+            return;
+        }
 
         switch (currentState)
         {
             case PredatorState.Exploring:
                 Explore();
                 break;
+
             case PredatorState.SearchingFood:
                 SearchFood();
                 break;
+
             case PredatorState.Eating:
                 Eat();
                 break;
@@ -47,44 +84,170 @@ public class Predator : MonoBehaviour
 
     void Explore()
     {
-        // Si hay comida a la vista, cambiar de estado
-        Bunny nearestBunny = FindNearestBunny();
-        if (nearestBunny != null)
+        if (ignoreFoodUntilExplorePoint)
         {
-            currentState = PredatorState.SearchingFood;
-            destination = nearestBunny.transform.position;
+            if (Vector3.Distance(transform.position, destination) < 0.1f)
+            {
+                ignoreFoodUntilExplorePoint = false;
+                SelectNewDestination();
+            }
             return;
         }
 
-        // Si ya llegÛ al destino, elegir uno nuevo
-        if (Vector3.Distance(transform.position, destination) < 0.1f)
+        Bunny nearestBunny = FindNearestBunny();
+
+        if (nearestBunny != null)
+        {
+            targetBunny = nearestBunny;
+            currentState = PredatorState.SearchingFood;
+            waterDecisionMade = false;
+            canCrossWaterThisSearch = false;
+        }
+        // Si hay comida a la vista, cambiar de estado a persecuci√≥n (caza)
+        if (nearestBunny != null && isResting == false) // Si detecta un conejo cerca y no est√° descansando...
+        {
+            startPersecution(nearestBunny); // Inicia la persecuci√≥n
+            return;
+        }
+
+        if (Vector3.Distance(transform.position, destination) < 0.2f)
         {
             SelectNewDestination();
         }
     }
 
+    // INICIO DE LA PERSECUCI√ìN
+    void startPersecution(Bunny prey)
+    {
+        currentPrey = prey; // Se guarda el conejo que va a perseguir el depredador
+
+        pursueTimer = 0f; // Se reinicia el contador de la persecuci√≥n 
+        currentState = PredatorState.SearchingFood; // Se dirigue al estado de buscar comida y ...
+        destination = prey.transform.position; // Diriguirse hacia su presa
+    }
+
     void SearchFood()
     {
-        Bunny nearestBunny = FindNearestBunny();
-        if (nearestBunny == null)
+        if (targetBunny == null)
         {
-            // Si no hay comida, volver a explorar
-            currentState = PredatorState.Exploring;
+            AbortHuntAndExplore();
             return;
         }
 
-        destination = nearestBunny.transform.position;
+        Vector2 origin = transform.position;
+        Vector2 target = targetBunny.transform.position;
+        Vector2 dir = target - origin;
+        float dist = dir.magnitude;
 
-        // Si est· suficientemente cerca, pasar a comer
-        if (Vector3.Distance(transform.position, nearestBunny.transform.position) < 0.2f)
+        if (dist <= 0.001f)
+        {
+            currentState = PredatorState.Eating;
+            return;
+        }
+
+        Vector2 dirNorm = dir / dist;
+
+        RaycastHit2D obstacleHit = Physics2D.Raycast(
+            origin,
+            dirNorm,
+            dist,
+            LayerMask.GetMask("Obstacles")
+        );
+
+        if (obstacleHit.collider != null)
+        {
+            AbortHuntAndExplore();
+            return;
+        }
+
+        RaycastHit2D waterHit = Physics2D.Raycast(
+            origin,
+            dirNorm,
+            dist,
+            LayerMask.GetMask("Water")
+        );
+
+        if (waterHit.collider != null)
+        {
+            if (!waterDecisionMade)
+            {
+                canCrossWaterThisSearch = Random.Range(0f, 100f) < waterCrossChance;
+                waterDecisionMade = true;
+            }
+
+            if (!canCrossWaterThisSearch)
+            {
+                AbortHuntAndExplore();
+                return;
+            }
+        }
+
+        destination = targetBunny.transform.position;
+
+        if (Vector3.Distance(transform.position, targetBunny.transform.position) < 0.2f)
+        //Actualizar destino hacia la presa m√°s cercana
+        destination = targetBunny.transform.position;
+
+        // PERSECUCI√ìN EN PROCESO
+        currentResistance -= resistanceLostSecondPursue * h;  // h es el tiempo de cada paso (1 segundo)
+        //Cada segundo que persigue, pierde resistencia
+        //Esto tambi√©n se puede escribir sin la h
+
+        pursueTimer += h; // h es el tiempo de cada paso (1 segundo)
+        //Cada segundo que persigue, aumenta el contador de tiempo
+        //Esto tambi√©n se puede escribir como: pursueTimer++
+
+        // VERIFICAR SI DEBE ABANDONAR POR CANSANCIO
+        if (currentResistance <=0 || pursueTimer >= PursueDuration) // Si el depredador se qued√≥ sin resistencia (energ√≠a) o persigui√≥ al conejo demasiado tiempo, entonces ...
+        {
+            AbandonPursue(); // Se rinde y abandona esa cacer√≠a
+            return;
+        }
+
+        // Si alcanz√≥ el conejo, pasar√° al m√©todo para comerselo
+        if (Vector3.Distance(transform.position, targetBunny.transform.position) < 0.2f)
         {
             currentState = PredatorState.Eating;
         }
     }
 
+    // ABANDONAR LA PERSECUCI√ìN (CACER√çA)
+    void AbandonPursue()
+    {
+        isResting = true; // Pasa a modo descanso
+        restingTimer = 0f; // Inicialmente el contador de descanso est√° en 0
+        currentPrey = null; // Olvida completamente al conejo por ahora
+        //currentState = PredatorState.Exploring
+        Debug.Log("El depredador abandon√≥ la persecuci√≥n por cansancio");
+    }
+
+    //M√âTODO DESCANSO O TIEMPO FUERA DEL DEPREDADOR
+    void Rest()
+    {
+        restingTimer += h; // h es el tiempo de cada paso (1 segundo)
+        //El contador del descanso va a aumentar
+        //Esto tambi√©n se puede escribir como: restingTimer++
+
+        currentResistance += resistanceRecoveredWithResting * h; // h es el tiempo de cada paso (1 segundo)
+        // Cada segundo que pasa, recupera resistencia
+        //Esto tambi√©n se puede escribir sin la h
+
+        currentResistance = Mathf.Min(currentResistance, maxResistancePursue); // Para evitar que la resistencia supere el m√°ximo
+
+        if (restingTimer >= restingDuration) // Si el depredador ya descans√≥ lo suficiente,...
+        {
+            isResting = false; // Volver√° a estar activo
+            Debug.Log("El depredador ha descansado y est√° listo para cazar");
+        }
+    }
     void Eat()
     {
-        Collider2D foodHit = Physics2D.OverlapCircle(transform.position, 0.2f, LayerMask.GetMask("Bunnies"));
+        Collider2D foodHit = Physics2D.OverlapCircle(
+            transform.position,
+            0.2f,
+            LayerMask.GetMask("Bunnies")
+        );
+
         if (foodHit != null)
         {
             Bunny food = foodHit.GetComponent<Bunny>();
@@ -95,14 +258,23 @@ public class Predator : MonoBehaviour
             }
         }
 
-        // DespuÈs de comer vuelve a explorar
+        ResetSearch();
         currentState = PredatorState.Exploring;
     }
 
-    void Flee()
+    void AbortHuntAndExplore()
     {
-        SelectNewDestination();
+        ResetSearch();
         currentState = PredatorState.Exploring;
+        ignoreFoodUntilExplorePoint = true;
+        SelectNewDestination();
+    }
+
+    void ResetSearch()
+    {
+        targetBunny = null;
+        waterDecisionMade = false;
+        canCrossWaterThisSearch = false;
     }
 
     void SelectNewDestination()
@@ -115,11 +287,16 @@ public class Predator : MonoBehaviour
 
         Vector3 targetPoint = transform.position + direction;
 
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, direction.normalized, visionRange, LayerMask.GetMask("Obstacles"));
+        RaycastHit2D hit = Physics2D.Raycast(
+            transform.position,
+            direction.normalized,
+            visionRange,
+            LayerMask.GetMask("Obstacles", "Water")
+        );
 
         if (hit.collider != null)
         {
-            float offset = transform.localScale.magnitude * 0.5f;
+            float offset = transform.localScale.magnitude * 0.9f;
             destination = hit.point - (Vector2)direction.normalized * offset;
         }
         else
@@ -130,12 +307,43 @@ public class Predator : MonoBehaviour
 
     void Move()
     {
-        transform.position = Vector3.MoveTowards(
+        Vector3 nextPosition = Vector3.MoveTowards(
             transform.position,
             destination,
             speed * h
         );
 
+        Vector3 moveDir = nextPosition - transform.position;
+        float moveDist = moveDir.magnitude;
+
+        if (moveDist > 0.0001f)
+        {
+            int mask = LayerMask.GetMask("Obstacles");
+
+            bool allowWater =
+                currentState == PredatorState.SearchingFood &&
+                canCrossWaterThisSearch;
+
+            if (!allowWater)
+            {
+                mask |= LayerMask.GetMask("Water");
+            }
+
+            RaycastHit2D hit = Physics2D.Raycast(
+                transform.position,
+                moveDir.normalized,
+                moveDist,
+                mask
+            );
+
+            if (hit.collider != null)
+            {
+                float offset = 0.05f;
+                nextPosition = (Vector3)hit.point - moveDir.normalized * offset;
+            }
+        }
+
+        transform.position = nextPosition;
         energy -= speed * h;
     }
 
@@ -165,31 +373,56 @@ public class Predator : MonoBehaviour
         Gizmos.DrawLine(transform.position, destination);
     }
 
-    Bunny FindNearestBunny() // Busca al conejo m·s cercano dentro del rango de visiÛn, considerando obst·culos
+    Bunny FindNearestBunny() // Busca al conejo mÔøΩs cercano dentro del rango de visiÔøΩn, considerando obstÔøΩculos
     {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, visionRange, LayerMask.GetMask("Bunnies")); // Busca todos los collider dentro del rango de visiÛn
-        Debug.Log($"Predator {name} encontrÛ {hits.Length} colliders en su rango");
+        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, visionRange, LayerMask.GetMask("Bunnies")); // Busca todos los collider dentro del rango de visiÔøΩn
+        Debug.Log($"Predator {name} encontrÔøΩ {hits.Length} colliders en su rango");
         Bunny nearest = null; // Inicializa la variable
-        float minDist = Mathf.Infinity; // Inicializa la distancia mÌnima a infinito
+        float minDist = Mathf.Infinity; // Inicializa la distancia mÔøΩnima a infinito
+        Collider2D[] hits = Physics2D.OverlapCircleAll(
+            transform.position,
+            visionRange,
+            LayerMask.GetMask("Bunnies")
+        );
+
+        Bunny nearest = null;
+        float minDist = Mathf.Infinity;
 
         foreach (Collider2D hit in hits)// Se ejecuta para cada collider encontrado
         {
-            Bunny food = hit.GetComponent<Bunny>();
-            if (food != null)
+            Bunny bunny = hit.GetComponent<Bunny>();
+            if (bunny == null) continue;
+
+            Vector3 direction = bunny.transform.position - transform.position;
+            float dist = direction.magnitude;
+
+            RaycastHit2D obstacleHit = Physics2D.Raycast(
+                transform.position,
+                direction.normalized,
+                dist,
+                LayerMask.GetMask("Obstacles", "Water")
+            );
+
+            if (obstacleHit.collider != null)
+                continue;
+
+            if (dist < minDist)
             {
-                Vector2 direction = food.transform.position - transform.position; //Ac· se calcula la direcciÛn hacia el conejo que va a cazar
-                float dist = direction.magnitude; //Ac· se calcula la distancia hacia el conejo que va a cazar
-                RaycastHit2D rayHit = Physics2D.Raycast(transform.position, direction.normalized, dist, LayerMask.GetMask("Obstacles")); //Ac· se lanza un rayo desde el depredador hacia el conejo para verificar si hay obst·culos en el camino
-                if (rayHit.collider == null) //Si el rayo no choca con ning˙n obst·culo, entonces el depredador tiene un camino directo hacia el conejo. Si el rayo choca con un obst·culo, entonces el depredador no puede ver al conejo por el obst·culo que hay en medio
+                Vector2 direction = food.transform.position - transform.position; //AcÔøΩ se calcula la direcciÔøΩn hacia el conejo que va a cazar
+                float dist = direction.magnitude; //AcÔøΩ se calcula la distancia hacia el conejo que va a cazar
+                RaycastHit2D rayHit = Physics2D.Raycast(transform.position, direction.normalized, dist, LayerMask.GetMask("Obstacles")); //AcÔøΩ se lanza un rayo desde el depredador hacia el conejo para verificar si hay obstÔøΩculos en el camino
+                if (rayHit.collider == null) //Si el rayo no choca con ningÔøΩn obstÔøΩculo, entonces el depredador tiene un camino directo hacia el conejo. Si el rayo choca con un obstÔøΩculo, entonces el depredador no puede ver al conejo por el obstÔøΩculo que hay en medio
                 {
-                    if (dist < minDist) //Si la distancia hacia el conejo es menor que la distancia mÌnima
+                    if (dist < minDist) //Si la distancia hacia el conejo es menor que la distancia mÔøΩnima
                     {
-                        minDist = dist; //Entonces se actualiza la distancia mÌnima
-                        nearest = food; //Y se actualiza el conejo m·s cercano
+                        minDist = dist; //Entonces se actualiza la distancia mÔøΩnima
+                        nearest = food; //Y se actualiza el conejo mÔøΩs cercano
                     }
                 }
+                minDist = dist;
+                nearest = bunny;
             }
         }
-        return nearest; //Retornando al conejo m·s cercano que el depredador puede ver, si no hay niguno entonces manda un null
+        return nearest; //Retornando al conejo mÔøΩs cercano que el depredador puede ver, si no hay niguno entonces manda un null
     }
 }

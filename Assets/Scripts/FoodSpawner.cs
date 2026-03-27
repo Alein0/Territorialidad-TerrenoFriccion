@@ -1,24 +1,25 @@
 using UnityEngine;
+using System.Collections.Generic;
 
-//Hacemos lo mismo de crear estados como en los conejos y los zorros, pero ac· es con respecto a las estaciones del aÒo
+//Hacemos lo mismo de crear estados como en los conejos y los zorros, pero ac√° es con respecto a las estaciones del a√±o
 public enum Season
 {
     Spring, //Primavera
     Summer, //Verano
-    Autumn, //OtoÒo
+    Autumn, //Oto√±o
     Winter //Invierno
 }
 
 public class FoodSpawner : MonoBehaviour
 {
 
-    //ConfiguraciÛn de apareciÛn de la comida en el escenario
+    //Configuraci√≥n de apareci√≥n de la comida en el escenario
     [Header("Spawner Settings")]
     public GameObject foodPrefab; //El sprite de la comida que va a aparecer en el escenario
-    public float spawnInterval = 0.5f; //Cada cu·ntos segundos en el tiempo va a aparecer comida en el escenario
-    public int maxFood = 50; //Cantidad m·xima de comida que puede haber en el escenario
+    public float spawnInterval = 0.5f; //Cada cu√°ntos segundos en el tiempo va a aparecer comida en el escenario
+    public int maxFood = 50; //Cantidad m√°xima de comida que puede haber en el escenario
 
-    //ConfiguraciÛn de las estaciones
+    //Configuraci√≥n de las estaciones
     [Header("Season Settings")]
     public Season currentSeason = Season.Spring; //Iniciamos en primavera
     public float secondsPerSeason = 10f; //Cada una dura 15 segundos
@@ -26,41 +27,61 @@ public class FoodSpawner : MonoBehaviour
     private float currentInterval; //Intervalo que se usara con el tiempo real
 
 
-    //¡rea en el que puede aparecer la comida
+    //√Årea en el que puede aparecer la comida
     [Header("Spawn Area (Rectangular)")]
-    public Vector2 areaSize = new Vector2(20, 20); //TamaÒo del ·rea
+    public Vector2 areaSize = new Vector2(20, 20); //Tama√±o del √°rea
     private float time = 0f;
 
     private void Start()
     {
         currentInterval = spawnInterval; //Se inicia el intervalo de las estaciones con el que viene la simulacion
+    [Header("Zone status")] // Probabilidad para que el terreno sea fertil, √°rido o normal
+    public float fertileZoneChance = 0.7f;
+    public float aridZoneChance = 0.2f;
+    public float normalZoneChance = 0.1f;
+
+    private float time = 0f;
+
+    // Lista en donde se guardan todas las posibles zonas
+    private List<Zone> allZones = new List<Zone>();
+
+    //Variable en la que se guarda la zona encontrada
+    private Zone foundZone;
+
+    private void Start()
+    {
+        // Cuando la simulaci√≥n empieze, revisar√° toda el √°rea para saber que terreno tiene y lo guardar√°
+        allZones.AddRange(FindObjectsByType<Zone>(FindObjectsSortMode.InstanceID));
     }
 
     public void Simulate(float h)
     {
-        //Esta parte serÌa de los cambios de estaciÛn
+        //Esta parte ser√≠a de los cambios de estaci√≥n
         seasonTimer += h;
         if (seasonTimer >= secondsPerSeason) //Si se cumple que ya paso el tiempo de cada estacion
         {
-            seasonTimer = 0; //Se reinicia el contador para que cuente de nuevo en la prÛxima estaciÛn
-            currentSeason = (Season)(((int)currentSeason + 1) % 4); //Como en el enum cada estaciÛn es un n˙mero (desde 0 hasta 3), entonces lo que le hace es sumarle 1 para pasar a la siguiente, y el mÛdulo 4 hace que vuelva a empezar en primavera despuÈs de terminar en la estaciÛn invierno
-            Debug.Log($"EstaciÛn actual: " + currentSeason); //Imprime en consola la estaciÛn actual
-            UpdateInterval(); //Actualiza el intervalo de apariciÛn de comida dependiendo de la estaciÛn actual
+            seasonTimer = 0; //Se reinicia el contador para que cuente de nuevo en la pr√≥xima estaci√≥n
+            currentSeason = (Season)(((int)currentSeason + 1) % 4); //Como en el enum cada estaci√≥n es un n√∫mero (desde 0 hasta 3), entonces lo que le hace es sumarle 1 para pasar a la siguiente, y el m√≥dulo 4 hace que vuelva a empezar en primavera despu√©s de terminar en la estaci√≥n invierno
+            Debug.Log($"Estaci√≥n actual: " + currentSeason); //Imprime en consola la estaci√≥n actual
+            UpdateInterval(); //Actualiza el intervalo de aparici√≥n de comida dependiendo de la estaci√≥n actual
         }
 
-        //Esta parte serÌa de la apariciÛn de comida en el escenario
+        //Esta parte ser√≠a de la aparici√≥n de comida en el escenario
         time += h;
         if (time >= currentInterval)
         {
             time = 0f;
             if (CountFood() < maxFood)
+
+            if (CountFood() < maxFood) // Si hay menos de 50 comidas...
             {
-                SpawnFood();
+                SpawnFoodDependZone(); // Te dirigue al m√©todo de generador de comida segun la zona
+                //SpawnFood();
             }
         }
     }
 
-    //Ac· configuramos quÈ tanto dura cada una de las estaciones
+    //Ac√° configuramos qu√© tanto dura cada una de las estaciones
     void UpdateInterval()
     {
         switch (currentSeason)
@@ -69,27 +90,68 @@ public class FoodSpawner : MonoBehaviour
                 currentInterval = spawnInterval;
                 break;
             case Season.Summer:
-                currentInterval = spawnInterval * 2f; //Si es verano, se demora 2 veces m·s de lo normal en salir comida
+                currentInterval = spawnInterval * 2f; //Si es verano, se demora 2 veces m√°s de lo normal en salir comida
                 break;
             case Season.Autumn:
-                currentInterval = spawnInterval * 3f; //Si es otoÒo, se demora 3 veces m·s de lo normal en salir comida
+                currentInterval = spawnInterval * 3f; //Si es oto√±o, se demora 3 veces m√°s de lo normal en salir comida
                 break;
             case Season.Winter:
-                currentInterval = spawnInterval * 4f; //Si es invierno, se demora 4 veces m·s de lo normal en salir comida
+                currentInterval = spawnInterval * 4f; //Si es invierno, se demora 4 veces m√°s de lo normal en salir comida
                 break;
         }
     }
 
     void SpawnFood()
+    void SpawnFoodDependZone() // GENERADOR DE COMIDA SEG√öN LA ZONA
     {
-        Vector2 spawnPos = new Vector2(
+        Vector2 spawnPos = new Vector2( // Crear una variable para guardar la posici√≥n
+            // Elige un n√∫mero al azar para la posici√≥n de la comida
             Random.Range(-areaSize.x / 2f, areaSize.x / 2f),
             Random.Range(-areaSize.y / 2f, areaSize.y / 2f)
         );
 
-        spawnPos += (Vector2)transform.position;
+        spawnPos += (Vector2)transform.position; // Suma la posici√≥n del generador de comida a la posici√≥n aleatoria
 
         Instantiate(foodPrefab, spawnPos, Quaternion.identity); 
+        GetZoneAtPosition(spawnPos); // Se dirigue al m√©todo para detectar la zona
+
+        float probability = normalZoneChance; // Mientras tanto, por defecto ser√° determinada como zona normal (Est√° en el 10%)
+
+        // Luego, al tener el dato de spawnpos, se corroboran los siguientes aspectos:
+        // Primero, si la posici√≥n est√° en alguna zona especial
+        if (foundZone != null)
+        {
+            // Segundo, Si la zona encontrada est√° se√±alada como fertil...
+            if (foundZone.zonetype == Zone.ZoneType.Fertile)
+            {
+                probability = fertileZoneChance; // Entonces es se√±alada como probabilidad del 70%
+            } 
+            else if (foundZone.zonetype == Zone.ZoneType.Arid)// Si no, entonces Si la zona encontrada est√° se√±alada como arida...
+            {
+                probability = aridZoneChance; // Entonces es se√±alada como probabilidad del 20%
+            }
+        }
+
+        if (Random.value <= probability) // Para saber si esa probabilidad se va a cumplir, se realiza este m√©todo para determinar si en esa zona aparecer√° comida o no
+        { 
+            Instantiate(foodPrefab, spawnPos, Quaternion.identity); // Si el valor da dentro del porcentaje, entonces aparecer√° comida
+        } //Si no, no aparece nada en este intento
+    }
+
+    void GetZoneAtPosition(Vector2 position) // Verifica si la posici√≥n est√° dentro de alguna zona especial (arida o fertil)
+    {
+        foundZone = null; // Inicialmente esta zona no se encuentra registrada
+
+        foreach (Zone zone in allZones) // Revisa cada zona guardada en la lista
+        {
+            Collider2D collider = zone.GetComponent<Collider2D>(); //Obtienes el collider de la zona
+
+            if (collider != null && collider.OverlapPoint(position)) // Verifica, si tiene collider e indica que tipo de zona es, entonces...
+            {
+                foundZone = zone; // Guarda la zona encontrada
+                return; // Salir del m√©todo ya que se tiene la informaci√≥n que necesitamos
+            }
+        }
     }
 
     int CountFood()
@@ -97,7 +159,7 @@ public class FoodSpawner : MonoBehaviour
         return FindObjectsByType<Food>(FindObjectsSortMode.InstanceID).Length;
     }
 
-    private void OnDrawGizmosSelected() //Ac· hace lo mismo que tiene el zorro y el conejo para saber el ·rea en el que puede aparecer la comida
+    private void OnDrawGizmosSelected() //Ac√° hace lo mismo que tiene el zorro y el conejo para saber el √°rea en el que puede aparecer la comida
     {
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireCube(transform.position, new Vector3(areaSize.x, areaSize.y, 1));
