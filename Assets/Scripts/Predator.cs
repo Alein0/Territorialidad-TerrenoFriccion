@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Predator : MonoBehaviour
 {
@@ -8,6 +8,7 @@ public class Predator : MonoBehaviour
     public float maxAge = 20;
     public float speed = 1f;
     public float visionRange = 5f;
+    public float baseSpeed;
 
     [Header("Water Settings")]
     [Range(0f, 100f)]
@@ -45,6 +46,7 @@ public class Predator : MonoBehaviour
     private void Start()
     {
         destination = transform.position;
+        baseSpeed = speed;
 
         //Al iniciar la simuación, el depredador estará con la resistencia al máximo
         currentResistance = maxResistancePursue;
@@ -134,12 +136,20 @@ public class Predator : MonoBehaviour
             return;
         }
 
-        Vector2 origin = transform.position;
-        Vector2 target = targetBunny.transform.position;
-        Vector2 dir = target - origin;
-        float dist = dir.magnitude;
+        // verificar que siga dentro del rango de visión
+        float dist = Vector3.Distance(transform.position, nearestBunny.transform.position);
 
-        if (dist <= 0.001f)
+        if (dist > visionRange)
+        {
+            currentState = PredatorState.Exploring;
+            SelectNewDestination(); 
+            return;
+        }
+
+        destination = nearestBunny.transform.position;
+
+        // Si está suficientemente cerca, pasar a comer
+        if (dist < 0.2f)
         {
             currentState = PredatorState.Eating;
             return;
@@ -373,18 +383,14 @@ public class Predator : MonoBehaviour
         Gizmos.DrawLine(transform.position, destination);
     }
 
-    Bunny FindNearestBunny()
+    Bunny FindNearestBunny() // Busca al conejo m�s cercano dentro del rango de visi�n, considerando obst�culos
     {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(
-            transform.position,
-            visionRange,
-            LayerMask.GetMask("Bunnies")
-        );
-
+        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, visionRange, LayerMask.GetMask("Bunnies"));
+        Debug.Log($"Predator {name} encontró {hits.Length} colliders en su rango");
         Bunny nearest = null;
         float minDist = Mathf.Infinity;
 
-        foreach (Collider2D hit in hits)
+        foreach (Collider2D hit in hits)// Se ejecuta para cada collider encontrado
         {
             Bunny bunny = hit.GetComponent<Bunny>();
             if (bunny == null) continue;
@@ -408,7 +414,6 @@ public class Predator : MonoBehaviour
                 nearest = bunny;
             }
         }
-
-        return nearest;
+        return nearest; //Retornando al conejo m�s cercano que el depredador puede ver, si no hay niguno entonces manda un null
     }
 }
