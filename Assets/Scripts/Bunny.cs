@@ -253,7 +253,7 @@ public class Bunny : MonoBehaviour
 
     Food FindNearestFood()
     {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, visionRange, LayerMask.GetMask("Food"));
+        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, visionRange, LayerMask.GetMask("Food")); 
         Debug.Log($"Bunny {name} encontró {hits.Length} colliders en su rango");
         Food nearest = null;
         float minDist = Mathf.Infinity;
@@ -263,11 +263,16 @@ public class Bunny : MonoBehaviour
             Food food = hit.GetComponent<Food>();
             if (food != null)
             {
-                float dist = Vector2.Distance(transform.position, food.transform.position);
-                if (dist < minDist)
+                Vector2 direction = food.transform.position - transform.position;
+                float dist = direction.magnitude;
+                RaycastHit2D rayHit = Physics2D.Raycast(transform.position, direction.normalized, dist, LayerMask.GetMask("Obstacles"));
+                if (rayHit.collider == null)
                 {
-                    minDist = dist;
-                    nearest = food;
+                    if (dist < minDist)
+                    {
+                        minDist = dist;
+                        nearest = food;
+                    }
                 }
             }
         }
