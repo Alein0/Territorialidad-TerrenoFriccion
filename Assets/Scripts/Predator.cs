@@ -43,6 +43,11 @@ public class Predator : MonoBehaviour
     // Mientras este valor sea true, el zorro explora sin volver a detectar comida.
     private bool ignoreFoodUntilExplorePoint = false;
 
+    // VARIABLES ZONA TERRITORIO
+    private bool hasTerritoryLimit = false;
+    private Vector3 territoryCenter;
+    private float territoryRadius;
+
     private void Start()
     {
         destination = transform.position;
@@ -50,6 +55,14 @@ public class Predator : MonoBehaviour
 
         //Al iniciar la simuación, el depredador estará con la resistencia al máximo
         currentResistance = maxResistancePursue;
+    }
+
+    //Es llamado por Territoriedad.cs para registrar limites
+    public void SetTerritoryLimits(Vector3 center, float radius) 
+    {
+        hasTerritoryLimit = true;
+        territoryCenter = center;
+        territoryRadius = radius;
     }
 
     public void Simulate(float h) // h es el tiempo de cada paso (1 segundo)
@@ -137,23 +150,29 @@ public class Predator : MonoBehaviour
         }
 
         // verificar que siga dentro del rango de visión
-        float dist = Vector3.Distance(transform.position, nearestBunny.transform.position);
+        float dist = Vector3.Distance(transform.position, targetBunny.transform.position);
 
-        if (dist > visionRange)
+        // Abandonar persecución si el conejo salió del territorio.
+        // Si no hay territorio definido, usar visionRange como límite.
+        bool conejoFueraDelTerritorio = hasTerritoryLimit
+            ? Vector3.Distance(targetBunny.transform.position, territoryCenter) > territoryRadius
+            : dist > visionRange;
+
+        if (conejoFueraDelTerritorio)
         {
             currentState = PredatorState.Exploring;
-            SelectNewDestination(); 
+            SelectNewDestination();
             return;
         }
 
-        destination = nearestBunny.transform.position;
+        destination = targetBunny.transform.position;
 
         // Si está suficientemente cerca, pasar a comer
         if (dist < 0.2f)
         {
             currentState = PredatorState.Eating;
             return;
-        }
+        } 
 
         Vector2 dirNorm = dir / dist;
 
@@ -191,7 +210,7 @@ public class Predator : MonoBehaviour
                 return;
             }
         }
-
+        
         destination = targetBunny.transform.position;
 
         if (Vector3.Distance(transform.position, targetBunny.transform.position) < 0.2f)
@@ -289,29 +308,52 @@ public class Predator : MonoBehaviour
 
     void SelectNewDestination()
     {
-        Vector3 direction = new Vector3(
-            Random.Range(-visionRange, visionRange),
-            Random.Range(-visionRange, visionRange),
-            0
-        );
+        //Se le da 10 intentos para generar destinos aleatorios, si todos son fuera de la zona de
+        //territorio, se le asigna el destino al centro del territorio
+        const int maxAttempts = 10;
 
-        Vector3 targetPoint = transform.position + direction;
-
-        RaycastHit2D hit = Physics2D.Raycast(
-            transform.position,
-            direction.normalized,
-            visionRange,
-            LayerMask.GetMask("Obstacles", "Water")
-        );
-
-        if (hit.collider != null)
+        for (int i = 0; i < maxAttempts; i++)
         {
-            float offset = transform.localScale.magnitude * 0.9f;
-            destination = hit.point - (Vector2)direction.normalized * offset;
+            Vector3 direction = new Vector3(
+                Random.Range(-visionRange, visionRange),
+                Random.Range(-visionRange, visionRange),
+                0
+            );
+
+            Vector3 candidate = transform.position + direction;
+
+            // Si hay territorio, rechazar puntos fuera del radio 
+            if (hasTerritoryLimit)
+            {
+                if (Vector3.Distance(candidate, territoryCenter) > territoryRadius)
+                    continue; // probar otra dirección
+            }
+
+            RaycastHit2D hit = Physics2D.Raycast(
+                transform.position,
+                direction.normalized,
+                visionRange,
+                LayerMask.GetMask("Obstacles", "Water")
+            );
+
+            if (hit.collider != null)
+            {
+                float offset = transform.localScale.magnitude * 0.9f;
+                destination = hit.point - (Vector2)direction.normalized * offset;
+            }
+            else
+            {
+                destination = candidate;
+            }
+            return; // destino válido encontrado
         }
-        else
+
+        // si no se encontró ningún punto válido en el territorio,
+        // volver al centro del territorio (o quedarse quieto si no hay límite).
+        if (hasTerritoryLimit)
         {
-            destination = targetPoint;
+            destination = territoryCenter;
+            Debug.Log("Predator: no se encontró destino dentro del territorio, volviendo al centro.");
         }
     }
 

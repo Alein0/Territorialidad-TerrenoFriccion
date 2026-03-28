@@ -10,8 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 3519612019460498571}
   - component: {fileID: 4280179364882799912}
-  - component: {fileID: -7062618976592757993}
+  - component: {fileID: -650090823475171235}
   - component: {fileID: 2478447337859204611}
+  - component: {fileID: -7954098075571434399}
   m_Layer: 9
   m_Name: Fox
   m_TagString: Untagged
@@ -93,7 +94,7 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!114 &-7062618976592757993
+--- !u!114 &-650090823475171235
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -102,16 +103,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 9157068989046605382}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0dc24950105011843a3f23c4ef2a1df1, type: 3}
+  m_Script: {fileID: 11500000, guid: 0a20f4c7be63d13469f16052bfc8600c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Predator
-  energy: 10000
-  age: 0
-  maxAge: 60
-  speed: 1.5
-  visionRange: 15
-  isAlive: 1
-  currentState: 0
+  m_EditorClassIdentifier: Assembly-CSharp::Territoriedad
+  territoryCenter: {x: 0, y: 0, z: 0}
+  territoryRadius: 6
 --- !u!60 &2478447337859204611
 PolygonCollider2D:
   m_ObjectHideFlags: 0
@@ -150,7 +146,7 @@ PolygonCollider2D:
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 36.02, y: 16.720001}
+    oldSize: {x: 6.003333, y: 2.7866666}
     newSize: {x: 1, y: 1}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
@@ -162,3 +158,29 @@ PolygonCollider2D:
       - {x: -0.5, y: -0.28866667}
       - {x: 0.5, y: -0.28866667}
   m_UseDelaunayMesh: 0
+--- !u!114 &-7954098075571434399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9157068989046605382}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0dc24950105011843a3f23c4ef2a1df1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Predator
+  energy: 10
+  age: 0
+  maxAge: 20
+  speed: 1
+  visionRange: 5
+  baseSpeed: 0
+  waterCrossChance: 50
+  maxResistancePursue: 10
+  resistanceLostSecondPursue: 2
+  resistanceRecoveredWithResting: 2
+  PursueDuration: 3
+  restingDuration: 3
+  isAlive: 1
+  currentState: 0

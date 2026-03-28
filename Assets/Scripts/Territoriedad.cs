@@ -1,10 +1,10 @@
 ﻿using UnityEngine;
 
-[RequireComponent(typeof(Predator))] //hace que el gameobgect tenga la clase pregator
+[RequireComponent(typeof(Predator))] //hace que el gameobgect tenga la clase predator
 public class Territoriedad : MonoBehaviour
 {
-    public Vector3 territoryCenter;
-    public float territoryRadius = 5f;
+    private Vector3 territoryCenter;
+    public float territoryRadius = 6f;
 
     private Predator predator;// para controlar el script predator
 
@@ -12,6 +12,7 @@ public class Territoriedad : MonoBehaviour
     {
         predator = GetComponent<Predator>(); //obtiene el componente predator
         territoryCenter = transform.position; //la posicion inicial se vuelve centro del territorio
+        predator.SetTerritoryLimits(territoryCenter, territoryRadius);// Le comunica al Predator los límites para que SelectNewDestination los respete
     }
 
     private void Update()
@@ -23,18 +24,16 @@ public class Territoriedad : MonoBehaviour
 
     void CheckTerritory()
     {
-        float dist = Vector3.Distance(transform.position, territoryCenter); //Calcula qué tan lejos está del centro
+        float dist = Vector3.Distance(transform.position, territoryCenter);
 
-        //  Si está cerca del límite o fuera
-        if (dist > territoryRadius * 0.9f)
+        // Si el depredador salió del territorio (puede ocurrir durante una persecución)
+        if (dist > territoryRadius)
         {
-            // Fuerza cambio de estado para que el Predator elija nuevo destino
+            // Fuerza volver a explorar: SelectNewDestination ya elegirá un punto dentro del radio
             predator.currentState = PredatorState.Exploring;
 
-            // Rota ligeramente al depredador hacia el centro
+            // Empujón suave de regreso al centro para que no quede flotando en el borde
             Vector3 dir = (territoryCenter - transform.position).normalized;
-
-            // Le da un empujon
             transform.position += dir * predator.speed * Time.deltaTime;
         }
     }
